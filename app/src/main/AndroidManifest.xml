@@ -1,7 +1,50 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
- <uses-permission android:name="android.permission.INTERNET"/><uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/><uses-permission android:name="android.permission.FOREGROUND_SERVICE"/><uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION"/><uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
- <application android:theme="@android:style/Theme.Material.NoActionBar" android:label="MirrorLink X" android:icon="@drawable/mirrorlink_logo" android:usesCleartextTraffic="true" android:allowBackup="false">
-  <activity android:name=".ReceiverActivity" android:exported="false" android:screenOrientation="unspecified"/><activity android:name=".MainActivity" android:exported="true" android:screenOrientation="unspecified"><intent-filter><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/></intent-filter></activity>
-  <service android:name=".CaptureService" android:exported="false" android:foregroundServiceType="mediaProjection"/>
- </application>
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+    <application
+        android:theme="@android:style/Theme.Material.NoActionBar"
+        android:label="MirrorLink X"
+        android:icon="@drawable/mirrorlink_logo"
+        android:usesCleartextTraffic="true"
+        android:allowBackup="false"
+        android:supportsRtl="true">
+
+        <activity
+            android:name=".ReceiverActivity"
+            android:exported="false"
+            android:screenOrientation="unspecified" />
+
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:screenOrientation="unspecified">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <service
+            android:name=".CaptureService"
+            android:exported="false"
+            android:foregroundServiceType="mediaProjection" />
+
+        <service
+            android:name=".MirrorLinkAccessibilityService"
+            android:label="MirrorLink X touch control"
+            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.accessibilityservice.AccessibilityService" />
+            </intent-filter>
+            <meta-data
+                android:name="android.accessibilityservice"
+                android:resource="@xml/mirrorlink_accessibility_service" />
+        </service>
+    </application>
 </manifest>
