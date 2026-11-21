@@ -138,13 +138,12 @@ class MainActivity : Activity() {
         try {
             IntentIntegrator(this)
                 .setDesiredBarcodeFormats(IntentIntegrator.QR_CODE)
-                .setPrompt("Scan the QR code shown on the receiver phone")
                 .setBeepEnabled(false)
                 .setOrientationLocked(false)
-                .setPrompt("Arahkan kamera ke QR pairing MirrorLink X")
+                .setPrompt("Arahkan kamera ke QR pairing di HP penerima")
                 .initiateScan()
-        } catch (e: Exception) {
-            Toast.makeText(this, "Scanner could not start: ${e.message ?: "camera unavailable"}", Toast.LENGTH_LONG).show()
+        } catch (e: Throwable) {
+            Toast.makeText(this, "Pemindai QR gagal dibuka. Periksa izin kamera atau gunakan input manual.", Toast.LENGTH_LONG).show()
             status.text = "● QR scanner unavailable. Enter the IP and token manually."
         }
     }
