@@ -1,16 +1,13 @@
 # MirrorLink X
+Android LAN screen sharing prototype.
 
-A local-network Android mirroring prototype with a custom dark interface.
+Implemented: MediaProjection capture consent, JPEG frame capture, TCP transport on port 4747, receiver display, QR payload, orientation following.
 
-## Current status
-- MirrorLink X branding and UI
-- Local IP display
-- QR pairing payload generation
-- MediaProjection consent request
-- Foreground capture service lifecycle
-- Adaptive orientation
+How to test:
+1. Put both devices on the same Wi-Fi.
+2. Find the receiver phone's IP in Wi-Fi settings.
+3. Open app on receiver and tap Start receiver.
+4. On sender, enter receiver IP, tap Share my screen, and approve Android capture.
+5. Receiver shows the sender's screen.
 
-**Not yet available:** video/audio transport, receiver decoder, QR scanning, and remote touch.
-
-## Build
-GitHub Actions builds a debug APK on push to `main` or manual workflow dispatch.
+Limitations: JPEG rather than H.264, no audio, QR camera scanning, remote touch, encryption, or auto-discovery. Receiver IP currently must be found in system Wi-Fi settings. Stream is unencrypted; use trusted local networks only.
