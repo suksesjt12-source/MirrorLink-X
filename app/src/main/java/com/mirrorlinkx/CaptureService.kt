@@ -1,6 +1,10 @@
 package com.mirrorlinkx
 
 import android.Manifest
+import android.bluetooth.BluetoothAdapter
+import android.bluetooth.BluetoothServerSocket
+import android.bluetooth.BluetoothSocket
+import java.util.UUID
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -41,6 +45,8 @@ class CaptureService : Service() {
     private var videoSocket: Socket? = null
     private var output: DataOutputStream? = null
     private var controlServer: ServerSocket? = null
+    private var bluetoothServer: BluetoothServerSocket? = null
+    private var bluetoothClient: BluetoothSocket? = null
     private var audioRecord: AudioRecord? = null
     private var audioThread: Thread? = null
 
@@ -59,6 +65,7 @@ class CaptureService : Service() {
         val host = intent?.getStringExtra("host")
         val token = intent?.getStringExtra("token")
         val audioEnabled = intent?.getBooleanExtra("audioEnabled", false) ?: false
+        val bluetoothControlEnabled = intent?.getBooleanExtra("bluetoothControlEnabled", false) ?: false
 
         if (data == null || host.isNullOrBlank() || token.isNullOrBlank()) {
             stopSelf(startId)
@@ -66,13 +73,13 @@ class CaptureService : Service() {
         }
 
         Thread {
-            startStreaming(host, token, resultCode, data, audioEnabled)
+            startStreaming(host, token, resultCode, data, audioEnabled, bluetoothControlEnabled)
         }.start()
         return START_NOT_STICKY
     }
 
     @Suppress("DEPRECATION")
-    private fun startStreaming(host: String, token: String, resultCode: Int, permissionData: Intent, audioEnabled: Boolean) {
+    private fun startStreaming(host: String, token: String, resultCode: Int, permissionData: Intent, audioEnabled: Boolean, bluetoothControlEnabled: Boolean) {
         try {
             val controlListener = ServerSocket().apply {
                 reuseAddress = true
@@ -80,6 +87,7 @@ class CaptureService : Service() {
             }
             controlServer = controlListener
             startControlListener(controlListener, token)
+            if (bluetoothControlEnabled) startBluetoothControlListener(token)
 
             val socket = Socket()
             socket.connect(InetSocketAddress(host, VIDEO_PORT), 7000)
@@ -246,29 +254,11 @@ class CaptureService : Service() {
                 Thread {
                     client.use { connection ->
                         try {
-                            val input = DataInputStream(connection.getInputStream())
-                            if (input.readUTF() != token) return@use
-                            while (!connection.isClosed) {
-                                val type = try {
-                                    input.readUnsignedByte()
-                                } catch (_: Exception) {
-                                    break
-                                }
-                                if (type == CONTROL_SWIPE) {
-                                    val startX = input.readFloat().coerceIn(0f, 1f)
-                                    val startY = input.readFloat().coerceIn(0f, 1f)
-                                    val endX = input.readFloat().coerceIn(0f, 1f)
-                                    val endY = input.readFloat().coerceIn(0f, 1f)
-                                    val duration = input.readInt().coerceIn(80, 700)
-                                    MirrorLinkAccessibilityService.sendSwipe(
-                                        startX, startY, endX, endY, duration
-                                    )
-                                }
-                            }
+                            handleControlInput(DataInputStream(connection.getInputStream()), token)
                         } catch (_: Exception) {
                         }
                     }
-                }.start()
+                }.apply { isDaemon = true; start() }
             }
         }.apply {
             name = "MirrorLinkX-Control"
@@ -277,6 +267,44 @@ class CaptureService : Service() {
         }
     }
 
+    private fun startBluetoothControlListener(token: String) {
+        Thread {
+            try {
+                val adapter = BluetoothAdapter.getDefaultAdapter() ?: return@Thread
+                if (!adapter.isEnabled) return@Thread
+                val listener = adapter.listenUsingRfcommWithServiceRecord("MirrorLink X Touch", BLUETOOTH_UUID)
+                bluetoothServer = listener
+                while (!listener.isClosed && !streaming) Thread.sleep(100)
+                while (!listener.isClosed) {
+                    val client = try { listener.accept() } catch (_: Exception) { break }
+                    bluetoothClient = client
+                    Thread {
+                        client.use { connection ->
+                            try { handleControlInput(DataInputStream(connection.inputStream), token) } catch (_: Exception) { }
+                        }
+                    }.apply { name = "MirrorLinkX-BluetoothControl"; isDaemon = true; start() }
+                }
+            } catch (_: SecurityException) {
+                // Bluetooth permission may have been revoked while sharing.
+            } catch (_: Exception) {
+                // Bluetooth is optional; Wi-Fi video remains available.
+            }
+        }.apply { name = "MirrorLinkX-BluetoothServer"; isDaemon = true; start() }
+    }
+
+    private fun handleControlInput(input: DataInputStream, token: String) {
+        if (input.readUTF() != token) return
+        while (!Thread.currentThread().isInterrupted) {
+            val type = try { input.readUnsignedByte() } catch (_: Exception) { break }
+            if (type != CONTROL_SWIPE) break
+            val startX = input.readFloat().coerceIn(0f, 1f)
+            val startY = input.readFloat().coerceIn(0f, 1f)
+            val endX = input.readFloat().coerceIn(0f, 1f)
+            val endY = input.readFloat().coerceIn(0f, 1f)
+            val duration = input.readInt().coerceIn(80, 700)
+            MirrorLinkAccessibilityService.sendSwipe(startX, startY, endX, endY, duration)
+        }
+    }
     override fun onDestroy() {
         streaming = false
         try {
@@ -291,6 +319,8 @@ class CaptureService : Service() {
             controlServer?.close()
         } catch (_: Exception) {
         }
+        try { bluetoothServer?.close() } catch (_: Exception) { }
+        try { bluetoothClient?.close() } catch (_: Exception) { }
         try {
             audioRecord?.stop()
             audioRecord?.release()
@@ -356,5 +386,6 @@ class CaptureService : Service() {
         private const val PACKET_VIDEO = 1
         private const val PACKET_AUDIO = 2
         private const val CONTROL_SWIPE = 1
+        private val BLUETOOTH_UUID: UUID = UUID.fromString("a3f1c2d4-6b8e-4f10-9a2c-7d5e1f3b4c60")
     }
 }
