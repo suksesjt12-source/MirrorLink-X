@@ -101,8 +101,9 @@ class CaptureService : Service() {
             }, Handler(Looper.getMainLooper()))
 
             val metrics = DisplayMetrics()
+            val displayManager = getSystemService(android.content.Context.WINDOW_SERVICE) as android.view.WindowManager
             @Suppress("DEPRECATION")
-            windowManager.defaultDisplay.getRealMetrics(metrics)
+            displayManager.defaultDisplay.getRealMetrics(metrics)
 
             val scale = minOf(1f, MAX_CAPTURE_WIDTH.toFloat() / metrics.widthPixels.toFloat())
             val width = (metrics.widthPixels * scale).toInt().coerceAtLeast(2)
