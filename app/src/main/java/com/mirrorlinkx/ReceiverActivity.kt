@@ -105,10 +105,11 @@ class ReceiverActivity : Activity() {
             contentDescription = "MirrorLink X receiver pairing QR code"
         }
         try {
-            val matrix = QRCodeWriter().encode(qrPayload, BarcodeFormat.QR_CODE, 600, 600)
-            val bitmap = Bitmap.createBitmap(600, 600, Bitmap.Config.ARGB_8888)
-            for (x in 0 until 600) {
-                for (y in 0 until 600) {
+            val qrPixels = 800
+            val matrix = QRCodeWriter().encode(qrPayload, BarcodeFormat.QR_CODE, qrPixels, qrPixels)
+            val bitmap = Bitmap.createBitmap(qrPixels, qrPixels, Bitmap.Config.ARGB_8888)
+            for (x in 0 until qrPixels) {
+                for (y in 0 until qrPixels) {
                     bitmap.setPixel(x, y, if (matrix[x, y]) Color.BLACK else Color.WHITE)
                 }
             }
@@ -118,7 +119,7 @@ class ReceiverActivity : Activity() {
 
         qrPanel.addView(
             qrImage,
-            LinearLayout.LayoutParams(320, 320).apply { gravity = Gravity.CENTER }
+            LinearLayout.LayoutParams((resources.displayMetrics.widthPixels / resources.displayMetrics.density).toInt().minus(36).coerceIn(280, 380), (resources.displayMetrics.widthPixels / resources.displayMetrics.density).toInt().minus(36).coerceIn(280, 380)).apply { gravity = Gravity.CENTER }
         )
         val instructions = TextView(this).apply {
             text = "Receiver IP: $ip\nScan this QR from the sender phone, then approve screen capture there. Keep both phones on the same trusted Wi-Fi."
