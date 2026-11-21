@@ -8,7 +8,7 @@ import android.app.Service
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
-import android.graphics.ImageFormat
+import android.graphics.PixelFormat
 import android.hardware.display.DisplayManager
 import android.hardware.display.VirtualDisplay
 import android.media.AudioAttributes
@@ -109,7 +109,7 @@ class CaptureService : Service() {
             val width = (metrics.widthPixels * scale).toInt().coerceAtLeast(2)
             val height = (metrics.heightPixels * scale).toInt().coerceAtLeast(2)
 
-            val imageReader = ImageReader.newInstance(width, height, ImageFormat.RGBA_8888, 3)
+            val imageReader = ImageReader.newInstance(width, height, PixelFormat.RGBA_8888, 3)
             reader = imageReader
             imageReader.setOnImageAvailableListener({ source ->
                 val image = try {
