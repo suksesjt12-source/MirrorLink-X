@@ -49,8 +49,21 @@ class ReceiverActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         sessionToken = createSessionToken()
+        var listener: ServerSocket? = null
+        try {
+            listener = ServerSocket().apply {
+                reuseAddress = true
+                bind(InetSocketAddress(VIDEO_PORT))
+            }
+            server = listener
+        } catch (_: Exception) {
+        }
         buildUi()
-        pool.execute { listenForSender() }
+        if (listener != null) {
+            pool.execute { listenForSender(listener) }
+        } else {
+            status.text = "Could not open port 4747. Close another receiver session and retry."
+        }
     }
 
     private fun buildUi() {
@@ -143,13 +156,8 @@ class ReceiverActivity : Activity() {
         }
     }
 
-    private fun listenForSender() {
+    private fun listenForSender(listening: ServerSocket) {
         try {
-            val listening = ServerSocket().apply {
-                reuseAddress = true
-                bind(InetSocketAddress(VIDEO_PORT))
-            }
-            server = listening
             while (!listening.isClosed) {
                 val client = listening.accept()
                 videoSocket = client
