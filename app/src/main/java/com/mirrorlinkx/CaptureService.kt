@@ -274,8 +274,7 @@ class CaptureService : Service() {
                 if (!adapter.isEnabled) return@Thread
                 val listener = adapter.listenUsingRfcommWithServiceRecord("MirrorLink X Touch", BLUETOOTH_UUID)
                 bluetoothServer = listener
-                while (!listener.isClosed && !streaming) Thread.sleep(100)
-                while (!listener.isClosed) {
+                while (!Thread.currentThread().isInterrupted) {
                     val client = try { listener.accept() } catch (_: Exception) { break }
                     bluetoothClient = client
                     Thread {
