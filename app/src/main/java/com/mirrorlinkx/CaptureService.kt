@@ -71,6 +71,7 @@ class CaptureService : Service() {
         return START_NOT_STICKY
     }
 
+    @Suppress("DEPRECATION")
     private fun startStreaming(host: String, token: String, resultCode: Int, permissionData: Intent, audioEnabled: Boolean) {
         try {
             val controlListener = ServerSocket().apply {
@@ -102,7 +103,6 @@ class CaptureService : Service() {
 
             val metrics = DisplayMetrics()
             val displayManager = getSystemService(android.content.Context.WINDOW_SERVICE) as android.view.WindowManager
-            @Suppress("DEPRECATION")
             displayManager.defaultDisplay.getRealMetrics(metrics)
 
             val scale = minOf(1f, MAX_CAPTURE_WIDTH.toFloat() / metrics.widthPixels.toFloat())
