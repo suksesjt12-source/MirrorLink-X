@@ -20,7 +20,6 @@ import android.widget.TextView
 import android.widget.Toast
 import android.media.projection.MediaProjectionManager
 import com.google.zxing.integration.android.IntentIntegrator
-import com.journeyapps.barcodescanner.CaptureActivity
 
 class MainActivity : Activity() {
     private lateinit var status: TextView
@@ -142,7 +141,7 @@ class MainActivity : Activity() {
                 .setPrompt("Scan the QR code shown on the receiver phone")
                 .setBeepEnabled(false)
                 .setOrientationLocked(false)
-                .setCaptureActivity(CaptureActivity::class.java)
+                .setPrompt("Arahkan kamera ke QR pairing MirrorLink X")
                 .initiateScan()
         } catch (e: Exception) {
             Toast.makeText(this, "Scanner could not start: ${e.message ?: "camera unavailable"}", Toast.LENGTH_LONG).show()
