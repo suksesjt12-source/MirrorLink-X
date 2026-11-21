@@ -5,7 +5,7 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION"/>
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
     <uses-permission android:name="android.permission.WAKE_LOCK"/>
-    <application android:theme="@android:style/Theme.Material.NoActionBar" android:label="MirrorLink X" android:usesCleartextTraffic="true" android:allowBackup="false">
+    <application android:theme="@android:style/Theme.Material.NoActionBar" android:label="MirrorLink X" android:icon="@drawable/mirrorlink_logo" android:usesCleartextTraffic="true" android:allowBackup="false">
         <activity android:name=".MainActivity" android:exported="true" android:screenOrientation="unspecified">
             <intent-filter><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/></intent-filter>
         </activity>
