@@ -1,6 +1,13 @@
 package com.mirrorlinkx
 
 import android.app.Activity
+import android.Manifest
+import android.app.AlertDialog
+import android.bluetooth.BluetoothAdapter
+import android.bluetooth.BluetoothDevice
+import android.bluetooth.BluetoothSocket
+import android.content.pm.PackageManager
+import android.os.Build
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
@@ -18,6 +25,7 @@ import android.widget.Button
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
+import android.widget.Toast
 import com.google.zxing.BarcodeFormat
 import com.google.zxing.qrcode.QRCodeWriter
 import java.io.BufferedInputStream
@@ -30,16 +38,19 @@ import java.net.Socket
 import java.security.SecureRandom
 import android.util.Base64
 import java.util.concurrent.Executors
+import java.util.UUID
 
 class ReceiverActivity : Activity() {
     private lateinit var status: TextView
     private lateinit var preview: ImageView
     private lateinit var qrPanel: LinearLayout
+    private lateinit var bluetoothButton: Button
 
     private var server: ServerSocket? = null
     private var videoSocket: Socket? = null
     private var controlSocket: Socket? = null
-    private var controlOutput: DataOutputStream? = null
+    private var bluetoothControlSocket: BluetoothSocket? = null
+    @Volatile private var controlOutput: DataOutputStream? = null
     private var audioTrack: AudioTrack? = null
     private val pool = Executors.newSingleThreadExecutor()
     private val controlLock = Any()
@@ -94,10 +105,10 @@ class ReceiverActivity : Activity() {
             contentDescription = "MirrorLink X receiver pairing QR code"
         }
         try {
-            val matrix = QRCodeWriter().encode(qrPayload, BarcodeFormat.QR_CODE, 420, 420)
-            val bitmap = Bitmap.createBitmap(420, 420, Bitmap.Config.ARGB_8888)
-            for (x in 0 until 420) {
-                for (y in 0 until 420) {
+            val matrix = QRCodeWriter().encode(qrPayload, BarcodeFormat.QR_CODE, 600, 600)
+            val bitmap = Bitmap.createBitmap(600, 600, Bitmap.Config.ARGB_8888)
+            for (x in 0 until 600) {
+                for (y in 0 until 600) {
                     bitmap.setPixel(x, y, if (matrix[x, y]) Color.BLACK else Color.WHITE)
                 }
             }
@@ -107,7 +118,7 @@ class ReceiverActivity : Activity() {
 
         qrPanel.addView(
             qrImage,
-            LinearLayout.LayoutParams(260, 260).apply { gravity = Gravity.CENTER }
+            LinearLayout.LayoutParams(320, 320).apply { gravity = Gravity.CENTER }
         )
         val instructions = TextView(this).apply {
             text = "Receiver IP: $ip\nScan this QR from the sender phone, then approve screen capture there. Keep both phones on the same trusted Wi-Fi."
@@ -126,6 +137,12 @@ class ReceiverActivity : Activity() {
         }
         root.addView(preview, LinearLayout.LayoutParams(-1, 0, 1f))
         preview.setOnTouchListener { _, event -> handleRemoteTouch(event) }
+
+        bluetoothButton = Button(this).apply {
+            text = "Connect touch control via Bluetooth"
+            setOnClickListener { chooseBluetoothDevice() }
+        }
+        root.addView(bluetoothButton, LinearLayout.LayoutParams(-1, -2))
 
         root.addView(Button(this).apply {
             text = "Stop receiver"
@@ -291,6 +308,72 @@ class ReceiverActivity : Activity() {
         }
     }
 
+    private fun chooseBluetoothDevice() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
+            checkSelfPermission(Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED
+        ) {
+            requestPermissions(arrayOf(Manifest.permission.BLUETOOTH_CONNECT), BLUETOOTH_PERMISSION_REQUEST)
+            return
+        }
+        try {
+            val adapter = BluetoothAdapter.getDefaultAdapter()
+            if (adapter == null || !adapter.isEnabled) {
+                Toast.makeText(this, "Turn on Bluetooth on both phones first.", Toast.LENGTH_LONG).show()
+                return
+            }
+            val devices = adapter.bondedDevices.toList()
+            if (devices.isEmpty()) {
+                Toast.makeText(this, "Pair the two phones in Android Bluetooth settings first.", Toast.LENGTH_LONG).show()
+                return
+            }
+            val labels = devices.map { device ->
+                val label = try { device.name ?: "Bluetooth device" } catch (_: SecurityException) { "Bluetooth device" }
+                "$label\\n${device.address}"
+            }.toTypedArray()
+            AlertDialog.Builder(this)
+                .setTitle("Choose the sending phone")
+                .setItems(labels) { _, which -> connectBluetoothDevice(devices[which]) }
+                .setNegativeButton("Cancel", null)
+                .show()
+        } catch (_: SecurityException) {
+            Toast.makeText(this, "Bluetooth permission is required.", Toast.LENGTH_LONG).show()
+        } catch (e: Exception) {
+            Toast.makeText(this, "Bluetooth unavailable: ${e.message}", Toast.LENGTH_LONG).show()
+        }
+    }
+
+    private fun connectBluetoothDevice(device: BluetoothDevice) {
+        status.text = "Connecting Bluetooth touch control…"
+        Thread {
+            var socket: BluetoothSocket? = null
+            try {
+                socket = device.createRfcommSocketToServiceRecord(BLUETOOTH_UUID)
+                socket.connect()
+                val output = DataOutputStream(BufferedOutputStream(socket.outputStream))
+                output.writeUTF(sessionToken)
+                output.flush()
+                bluetoothControlSocket?.close()
+                bluetoothControlSocket = socket
+                controlOutput = output
+                runOnUiThread { status.text = "Bluetooth touch control connected • drag on the screen" }
+            } catch (e: Exception) {
+                try { socket?.close() } catch (_: Exception) { }
+                runOnUiThread {
+                    status.text = "Bluetooth touch connection failed"
+                    Toast.makeText(this, "Could not connect. Confirm both phones are paired and screen sharing is active.", Toast.LENGTH_LONG).show()
+                }
+            }
+        }.apply { name = "MirrorLinkX-BluetoothClient"; isDaemon = true; start() }
+    }
+
+    @Suppress("DEPRECATION")
+    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode == BLUETOOTH_PERMISSION_REQUEST) {
+            if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) chooseBluetoothDevice()
+            else Toast.makeText(this, "Bluetooth permission denied.", Toast.LENGTH_LONG).show()
+        }
+    }
     private fun handleRemoteTouch(event: MotionEvent): Boolean {
         val output = controlOutput ?: return false
         val width = preview.width.coerceAtLeast(1).toFloat()
@@ -339,10 +422,8 @@ class ReceiverActivity : Activity() {
             videoSocket?.close()
         } catch (_: Exception) {
         }
-        try {
-            controlSocket?.close()
-        } catch (_: Exception) {
-        }
+        try { controlSocket?.close() } catch (_: Exception) { }
+        try { bluetoothControlSocket?.close() } catch (_: Exception) { }
         try {
             audioTrack?.stop()
             audioTrack?.release()
@@ -358,6 +439,8 @@ class ReceiverActivity : Activity() {
         private const val PACKET_VIDEO = 1
         private const val PACKET_AUDIO = 2
         private const val CONTROL_SWIPE = 1
+        private const val BLUETOOTH_PERMISSION_REQUEST = 5301
+        private val BLUETOOTH_UUID: UUID = UUID.fromString("a3f1c2d4-6b8e-4f10-9a2c-7d5e1f3b4c60")
         private const val AUDIO_SAMPLE_RATE = 44100
         private const val MAX_VIDEO_PACKET = 6_000_000
         private const val MAX_AUDIO_PACKET = 64_000
