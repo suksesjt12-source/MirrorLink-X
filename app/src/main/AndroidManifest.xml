@@ -21,14 +21,6 @@
         android:supportsRtl="true">
 
         <activity
-            android:name="com.journeyapps.barcodescanner.CaptureActivity"
-            android:exported="false"
-            android:screenOrientation="fullSensor"
-            android:stateNotNeeded="true"
-            android:theme="@android:style/Theme.Material.NoActionBar"
-            android:windowSoftInputMode="stateAlwaysHidden" />
-
-        <activity
             android:name=".ReceiverActivity"
             android:exported="false"
             android:screenOrientation="unspecified" />
