@@ -9,14 +9,9 @@ import android.media.projection.MediaProjection
 import android.media.projection.MediaProjectionManager
 import android.os.IBinder
 import android.os.Build
-import android.hardware.display.DisplayManager
-import android.hardware.display.VirtualDisplay
-import android.util.DisplayMetrics
-import android.view.WindowManager
 
 class CaptureService : Service() {
     private var projection: MediaProjection? = null
-    private var display: VirtualDisplay? = null
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         createChannel()
@@ -26,21 +21,13 @@ class CaptureService : Service() {
         if (data != null) {
             val manager = getSystemService(MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
             projection = manager.getMediaProjection(code, data)
-            projection?.let { p ->
-                val metrics = DisplayMetrics()
-                @Suppress("DEPRECATION")
-                (getSystemService(WINDOW_SERVICE) as WindowManager).defaultDisplay.getRealMetrics(metrics)
-                // Capture is initialized as a proof-of-permission. A video encoder and LAN transport
-                // will be added in the next milestone; no screen content is transmitted in this build.
-                display = p.createVirtualDisplay("MirrorLinkX-preview", metrics.widthPixels, metrics.heightPixels,
-                    metrics.densityDpi, DisplayManager.VIRTUAL_DISPLAY_FLAG_AUTO_MIRROR, null, null, null)
-            }
+            // Consent and foreground-service lifecycle are established. Actual encoding and
+            // network transmission are intentionally not part of this MVP.
         }
         return START_NOT_STICKY
     }
 
     override fun onDestroy() {
-        display?.release()
         projection?.stop()
         super.onDestroy()
     }
